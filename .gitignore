@@ -1,0 +1,34 @@
+# __pycache__ 폴더 무시
+__pycache__/
+
+# .pt파일 무시
+*.pt
+
+
+#prompt_images 디렉토리도 무시
+prompt_images/
+example_images/
+
+#이미지 무시
+*.jgp
+*.webp
+
+
+#테스트용 json파일 무시
+*.json
+
+#env파일 무시
+.env
+.env.prod
+.env.test
+
+#index파일 무시
+*.index
+
+#faiss 디렉토리도 무시
+faiss/
+
+
+#airflow 관련 파일 무시
+logs/
+plugins/

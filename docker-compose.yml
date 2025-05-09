@@ -1,0 +1,85 @@
+version: "3.8"
+
+x-airflow-common:
+  # 새로 만든 Dockerfile을 사용
+  &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env
+  environment: &airflow-env
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+    AIRFLOW__CORE__PYTHONPATH: "/opt/airflow"
+    AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+    AIRFLOW__WEBSERVER__WORKERS: "2"
+    # Airflow 메타 데이터베이스 연결 (로컬 컨테이너)
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres_airflow:5432/airflow"
+    # 원격 제품 데이터베이스 연결 ID (실제 리눅스 서버에 있는 PostgreSQL)
+    PRODUCTS_CONN_ID: "postgres_ppicker"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./etl:/opt/airflow/etl
+    # 기존 ETL 코드 마운트
+    - .:/opt/airflow/project_source
+  depends_on:
+    postgres_airflow:
+      condition: service_healthy
+
+services:
+  postgres_airflow:
+    # Airflow 메타·로그 전용 PostgreSQL (로컬 컨테이너)
+    image: postgres:16-alpine
+    container_name: postgres_airflow
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - pgmeta:/var/lib/postgresql/data
+    ports:
+      - "25432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U airflow" ]
+      interval: 10s
+      retries: 3
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command: >
+      -c "airflow db init && 
+          airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com && 
+          airflow connections add postgres_ppicker --conn-type postgres --conn-host [원격_서버_IP] --conn-login [사용자명] --conn-password [비밀번호] --conn-port 5432 --conn-schema [DB명]"
+    depends_on:
+      postgres_airflow:
+        condition: service_healthy
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  pgmeta: {}
