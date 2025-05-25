@@ -28,14 +28,14 @@ def _create_single_brand_list(brands: Dict[str, str]) -> list[Dict[str, str]]:
     """
     return [{brand: url} for brand, url in brands.items()]
 
-# DAG 기본 설정
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retries': 0,                # 재시도 횟수를 0으로 설정
+    # 'retry_delay': timedelta(minutes=5),  # 재시도 자체를 안 쓰면 이 라인은 지워도 됩니다
 }
 
 with DAG(
@@ -84,7 +84,7 @@ with DAG(
         return to_run or 'skip_etl'
 
     @task
-    def run_musinsa_brand_etl() -> Dict[str, str]:
+    def run_musinsa_brand_etl() ->list[Dict[str, str]]:
         """
         Musinsa 브랜드 ETL 실행 후 브랜드 딕셔너리 반환
         """
@@ -98,7 +98,7 @@ with DAG(
         logger.info(f"무신사 ETL 시작: {len(brand_dict)}개 브랜드")
         Musinsa_BrandETL(brand_dict=brand_dict, platform="musinsa").run()
         logger.info("무신사 Brand ETL 완료")
-        return brand_dict
+        return _create_single_brand_list(brand_dict)
 
     @task(max_active_tis_per_dag=4)
     def run_musinsa_product_etl(single_brand: Dict[str, str]) -> bool:
@@ -112,7 +112,7 @@ with DAG(
         return True
 
     @task
-    def run_etcseoul_brand_etl() -> Dict[str, str]:
+    def run_etcseoul_brand_etl()  -> list[Dict[str, str]]:
         """
         ETC서울 브랜드 ETL 실행 후 브랜드 딕셔너리 반환
         """
@@ -124,9 +124,10 @@ with DAG(
             return {}
 
         logger.info(f"ETC서울 ETL 시작: {len(brand_dict)}개 브랜드")
-        ETC_BrandETL(brand_dict=brand_dict, platform="etcseoul").run()
+        ETC_BrandETL(brand_dict=brand_dict, platform="ETCSeoul").run()
         logger.info("ETC서울 Brand ETL 완료")
-        return brand_dict
+
+        return _create_single_brand_list(brand_dict)
 
     @task(max_active_tis_per_dag=4)
     def run_etcseoul_product_etl(single_brand: Dict[str, str]) -> bool:
@@ -135,7 +136,7 @@ with DAG(
         """
         brand_name, url = next(iter(single_brand.items()))
         logger.info(f"ETC서울 Product ETL 시작: {brand_name}")
-        ETC_ProductETL(brand_dict=single_brand, platform="etcseoul").run()
+        ETC_ProductETL(brand_dict=single_brand, platform="ETCSeoul").run()
         logger.info(f"ETC서울 {brand_name} 상품 ETL 완료")
         return True
 
@@ -159,10 +160,10 @@ with DAG(
 
     # Brand ETL 완료 후 상품 ETL 매핑
     musinsa_products = run_musinsa_product_etl.expand(
-        single_brand=_create_single_brand_list(musinsa_brands)
+        single_brand=musinsa_brands
     )
     etcseoul_products = run_etcseoul_product_etl.expand(
-        single_brand=_create_single_brand_list(etcseoul_brands)
+        single_brand=etcseoul_brands
     )
 
     # 명시적 체이닝: 브랜드 ETL → 상품 ETL

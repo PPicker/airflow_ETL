@@ -13,17 +13,14 @@ from .platform_utils.image_extractor import (
     upload_pil_image_to_s3,
     get_normalized_image_format_from_url,
 )
-from config.brand_whitelist_loader import load_whitelisted_brands
 from config.env_loader import load_db_config, load_environment
-from .get_brand_url import load_brand_dict_from_csv
 from utils.fashion_detector import FashionDetector
 from utils.ocr import OCR
 from utils.name_rule import normalize_product_name, normalize_brand_name, get_image_name
 import uuid
 
 import logging
-
-logger = logging.getlogger(__name__)
+logger = logging.getLogger(__name__)
 
 class Musinsa_ProductETL(BaseProductETL):
     def __init__(self, *args, **kwargs):

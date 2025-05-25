@@ -6,7 +6,9 @@ from .detail_parser import parse_product_detail
 from .. import headers,setup_driver
 from selenium import webdriver
 import logging
-logger = logging.getlogger(__name__)
+
+
+logger = logging.getLogger(__name__)
 
 
 def json2dict(product_json):

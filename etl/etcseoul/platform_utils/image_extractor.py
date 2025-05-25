@@ -34,9 +34,10 @@ def get_normalized_image_format_from_url(url):
     return normalized_format
 
 
+
 def extract_images(soup):
     imgs = soup.find_all("img", src=lambda s: s and "/web/upload/NNEditor/" in s)
-    logger.info(f"{len(image_urls)}개의 이미지 URL을 추출했습니다.")
+    logger.info(f"{len(imgs)}개의 이미지 URL을 추출했습니다.")
     return list(dict.fromkeys([urljoin(base_url, img["src"]) for img in imgs]))
 
 

@@ -30,6 +30,28 @@ RUN pip install ultralytics
 RUN pip install paddlepaddle paddleocr
 
 
+#모델 가중치 프리다운로드
+#    → HuggingFace, YOLO, PaddleOCR 모델을 미리 받아 둡니다.
+#    → 캐시 디렉터리(~/.cache) 안에 다운로드되므로, 런타임에 바로 로드 가능.
+RUN python - <<EOF
+from paddleocr import PaddleOCR
+from ultralytics import YOLO
+from transformers import YolosImageProcessor, AutoModelForObjectDetection
+
+# 1) OCR 가중치
+PaddleOCR(lang="korean")               
+
+# 2) YOLOv8 가중치
+YOLO('yolov8n.pt')                     
+
+# 3) Fashionpedia 모델 가중치
+YolosImageProcessor.from_pretrained(
+    'valentinafeve/yolos-fashionpedia', trust_remote_code=True
+)
+AutoModelForObjectDetection.from_pretrained(
+    'valentinafeve/yolos-fashionpedia'
+)
+EOF
 
 # 프로젝트 파일 복사
 COPY . .
